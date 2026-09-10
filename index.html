@@ -694,7 +694,7 @@
             }
             
             try {
-                const response = await fetch(`/api/login?password=${encodeURIComponent(password)}`);
+                const response = await fetch(`${API_BASE}/api/login?password=${encodeURIComponent(password)}`);
                 const data = await response.json();
                 
                 if (response.status === 401) {
@@ -729,7 +729,7 @@
         // ===== LOAD AGENT NAMES =====
         async function loadAgents() {
             try {
-                const response = await fetch('/api/agents');
+                const response = await fetch(`${API_BASE}/api/agents`);
                 const agents = await response.json();
                 
                 const agentSelect = document.getElementById('agentFilter');
@@ -766,7 +766,7 @@
             btn.textContent = 'Running poll...';
             
             try {
-                const response = await fetch(`/api/test-poll?password=${encodeURIComponent(sessionPassword)}&force=true`);
+                const response = await fetch(`${API_BASE}/api/test-poll?password=${encodeURIComponent(sessionPassword)}&force=true`);
                 const data = await response.json();
                 
                 if (response.status === 401) {
