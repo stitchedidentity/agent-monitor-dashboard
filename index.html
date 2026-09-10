@@ -353,6 +353,16 @@
     </style>
 </head>
 <body>
+    <div id="loginModal" class="modal" style="display: none;">
+        <div class="modal-content" style="background: white; padding: 40px; border-radius: 12px; max-width: 400px; margin: 100px auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <h2 style="color: #333; margin-bottom: 20px;">Dashboard Login</h2>
+            <input type="password" id="passwordInput" placeholder="Enter dashboard password" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+            <button id="loginBtn" style="width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Login</button>
+            <div id="loginError" style="color: red; margin-top: 10px; font-size: 12px;"></div>
+        </div>
+    </div>
+
+    <div id="mainContent" style="display: none;">
     <div class="container">
         <header>
             <h1>🎯 Agent Performance Monitor</h1>
@@ -633,6 +643,7 @@
                             <div class="status-text">Last Poll: ${lastPoll} EST</div>
                             <div class="status-text">Serious Issues Found: ${status.serious_issues_count || 0}</div>
                             <div class="status-text">Next Poll: 6:00 PM EST (Daily)</div>
+                            <button id="runPollBtn" onclick="runPoll()" style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">▶ Run Poll Now</button>
                         </div>
                     `;
                 } else {
@@ -666,5 +677,125 @@
 
         // Auto-refresh every 5 minutes
         setInterval(refreshData, 300000);
+
+        // ===== PASSWORD PROTECTION =====
+        let sessionPassword = null;
+        
+        window.addEventListener('load', () => {
+            // Check if password is already in session
+            sessionPassword = sessionStorage.getItem('dashboardPassword');
+            
+            if (!sessionPassword) {
+                // Show login modal
+                document.getElementById('mainContent').style.display = 'none';
+                document.getElementById('loginModal').style.display = 'block';
+                
+                document.getElementById('loginBtn').addEventListener('click', handleLogin);
+                document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleLogin();
+                });
+            } else {
+                // Password already set in session, show content
+                document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                loadAgents(); // Load agent names
+            }
+        });
+        
+        async function handleLogin() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!password) {
+                errorDiv.textContent = 'Password required';
+                return;
+            }
+            
+            // Test password by calling an API that requires it
+            try {
+                const response = await fetch(`/api/test-poll?password=${encodeURIComponent(password)}&force=false`);
+                
+                if (response.status === 401) {
+                    errorDiv.textContent = 'Invalid password';
+                    return;
+                }
+                
+                // Password is valid, store in session and show dashboard
+                sessionStorage.setItem('dashboardPassword', password);
+                sessionPassword = password;
+                
+                document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                loadAgents(); // Load agent names after login
+            } catch (error) {
+                errorDiv.textContent = 'Login error: ' + error.message;
+            }
+        }
+        
+        // ===== LOAD AGENT NAMES =====
+        async function loadAgents() {
+            try {
+                const response = await fetch('/api/agents');
+                const agents = await response.json();
+                
+                const agentSelect = document.getElementById('agentFilter');
+                const currentValue = agentSelect.value;
+                
+                // Keep "All Agents" option
+                agentSelect.innerHTML = '<option value="">All Agents</option>';
+                
+                agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent;
+                    option.textContent = agent;
+                    agentSelect.appendChild(option);
+                });
+                
+                // Restore previous selection
+                if (currentValue) {
+                    agentSelect.value = currentValue;
+                }
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
+        
+        // ===== RUN POLL BUTTON =====
+        async function runPoll() {
+            if (!sessionPassword) {
+                alert('Password not set');
+                return;
+            }
+            
+            const btn = document.getElementById('runPollBtn');
+            btn.disabled = true;
+            btn.textContent = 'Running poll...';
+            
+            try {
+                const response = await fetch(`/api/test-poll?password=${encodeURIComponent(sessionPassword)}&force=true`);
+                const data = await response.json();
+                
+                if (response.status === 401) {
+                    alert('Password expired. Please refresh the page.');
+                    sessionStorage.removeItem('dashboardPassword');
+                    return;
+                }
+                
+                alert('Poll started! Check back in 2-3 minutes for results.');
+                
+                // Refresh status after a few seconds
+                setTimeout(() => {
+                    loadStatus();
+                    loadAlerts();
+                }, 3000);
+            } catch (error) {
+                alert('Error running poll: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '▶ Run Poll Now';
+            }
+        }
     </script>
+    </div> <!-- Close mainContent -->
 </body></html>
