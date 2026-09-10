@@ -547,23 +547,6 @@
             }
         }
 
-        async function loadFilterOptions() {
-            try {
-                const response = await fetch(`${API_BASE}/api/alert-filters`);
-                const data = await response.json();
-
-                const agentSelect = document.getElementById('agentFilter');
-                data.agents.forEach(agent => {
-                    const option = document.createElement('option');
-                    option.value = agent;
-                    option.textContent = agent;
-                    agentSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading filters:', error);
-            }
-        }
-
         function refreshData() {
             loadKPIData();
             loadAlerts();
@@ -666,7 +649,6 @@
             loadStatus();
             loadKPIData();
             loadAlerts();
-            loadFilterOptions();
             loadTopics();
 
             // Reload alerts when filters change
